@@ -44,6 +44,10 @@ func (fr *FileReader) Tail(n int) ([]string, error) {
 	return lines[start:], nil
 }
 
+func (fr *FileReader) Close() error {
+	return fr.file.Close()
+}
+
 // At this point, this reads once the file using a buffer of 4096 bytes
 // and returns the last n lines. So next step would be to keep navigating
 // up in the file until we have enough lines.
