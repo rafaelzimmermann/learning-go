@@ -20,13 +20,17 @@ func main() {
 			fmt.Printf("Error opening file %s: %v\n", filePath, err)
 			continue
 		}
-		lines, err := fr.Tail(*n)
+		iterator, err := fr.Tail(*n)
 		if err != nil {
 			fmt.Printf("Error reading file %s: %v\n", filePath, err)
 			continue
 		}
-		for _, line := range lines {
-			fmt.Println(line)
+		defer iterator.Close()
+
+		value, err := iterator.Next()
+		for err != nil && len(value) > 0 {
+			fmt.Println(value)
+			value, err = iterator.Next()
 		}
 	}
 }
