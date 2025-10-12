@@ -19,7 +19,7 @@ type FileIterator struct {
 }
 
 func NewFileIterator(file *os.File, bufferSize int, offset int64) (*FileIterator, error) {
-	file.Seek(offset, io.SeekEnd)
+	file.Seek(offset, io.SeekStart)
 	return &FileIterator{
 		file:   file,
 		offset: offset,
@@ -29,7 +29,9 @@ func NewFileIterator(file *os.File, bufferSize int, offset int64) (*FileIterator
 }
 
 func (it *FileIterator) Next() (string, error) {
+	it.file.Seek(it.offset, io.SeekStart)
 	bytes, err := it.reader.Read(it.buffer)
+	it.offset += int64(bytes)
 	if err != nil && err != io.EOF {
 		return "", err
 	}
@@ -67,34 +69,45 @@ func defineStartingOffset(file *os.File, n int) (int64, error) {
 		return 0, nil
 	}
 	totalLines := 0
-	offset := -min(bufferSize, fileSize)
-	resultOffset := int64(0)
+	offset := max(0, fileSize-bufferSize)
+	resultOffset := int64(offset)
+	isTail := true
 	for totalLines <= n {
-		file.Seek(offset, io.SeekEnd)
-		resultOffset = offset
+		file.Seek(resultOffset, io.SeekStart)
 		buf := make([]byte, bufferSize)
 		bytes, err := file.Read(buf)
 		if err != nil && err != io.EOF {
-			return -fileSize, err
+			return offset, err
 		}
 		if bytes == 0 {
-			return -fileSize, nil
+			return offset, nil
 		}
-		lines := strings.Split(string(buf[:bytes]), "\n")
-		totalLines = totalLines + len(lines)
+		bufferContent := string(buf[:bytes])
+		if len(bufferContent) > 0 && isTail && bufferContent[len(bufferContent)-1] == '\n' {
+			bufferContent = bufferContent[:len(bufferContent)-1]
+			isTail = false
+		}
+		lineBreaksInBuffer := strings.Count(bufferContent, "\n")
+		totalLines = totalLines + lineBreaksInBuffer
 		if totalLines > n {
-			linesToDrop := totalLines - n
-			for i := 0; i < linesToDrop; i++ {
-				resultOffset = resultOffset + int64(len(lines[i])) + 1
+			linesToDrop := totalLines + 1 - n
+			droppedLines := 0
+			i := 0
+			for droppedLines < linesToDrop {
+				resultOffset = resultOffset + 1
+				if bufferContent[i] == '\n' {
+					droppedLines++
+				}
+				i++
 			}
 			return resultOffset, nil
 		}
-		offset = offset + int64(bufferSize)
-		if offset > fileSize {
-			return -fileSize, nil
+		resultOffset = resultOffset - int64(bufferSize) - 1
+		if resultOffset <= 0 {
+			return 0, nil
 		}
 	}
-	return -fileSize, nil
+	return 0, nil
 }
 
 func (fr *FileIterator) Close() error {

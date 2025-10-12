@@ -7,12 +7,10 @@ import (
 
 func main() {
 	n := flag.Int("n", 10, "number of lines")
-	follow := flag.Bool("f", false, "follow the file as it grows")
+	// follow := flag.Bool("f", false, "follow the file as it grows")
 
 	flag.Parse()
 	files := flag.Args()
-
-	fmt.Printf("n=%d, f=%t, files=%q\n", *n, *follow, files)
 
 	for _, filePath := range files {
 		fr, err := NewFileReader(filePath)
@@ -28,8 +26,12 @@ func main() {
 		defer iterator.Close()
 
 		value, err := iterator.Next()
-		for err != nil && len(value) > 0 {
-			fmt.Println(value)
+		if err != nil {
+			fmt.Printf("Error reading from iterator: %v\n", err)
+			continue
+		}
+		for len(value) > 0 {
+			fmt.Printf("%s", value)
 			value, err = iterator.Next()
 		}
 	}
