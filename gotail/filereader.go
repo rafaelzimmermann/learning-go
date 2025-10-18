@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"io"
 	"os"
 	"strings"
@@ -13,7 +12,6 @@ type FileReader struct {
 
 type FileIterator struct {
 	file   *os.File
-	reader *bufio.Reader
 	offset int64
 	buffer []byte
 }
@@ -24,13 +22,12 @@ func NewFileIterator(file *os.File, bufferSize int, offset int64) (*FileIterator
 		file:   file,
 		offset: offset,
 		buffer: make([]byte, bufferSize),
-		reader: bufio.NewReader(file),
 	}, nil
 }
 
 func (it *FileIterator) Next() (string, error) {
 	it.file.Seek(it.offset, io.SeekStart)
-	bytes, err := it.reader.Read(it.buffer)
+	bytes, err := it.file.ReadAt(it.buffer, it.offset)
 	it.offset += int64(bytes)
 	if err != nil && err != io.EOF {
 		return "", err
@@ -41,7 +38,7 @@ func (it *FileIterator) Next() (string, error) {
 	return string(it.buffer[:bytes]), nil
 }
 
-const bufferSize = 4096
+const bufferSize = 1024 * 4
 
 func NewFileReader(filePath string) (*FileReader, error) {
 	return &FileReader{filePath: filePath}, nil
