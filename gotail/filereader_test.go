@@ -39,6 +39,8 @@ func TestFileReaderReturnsLastLineWhenNEqualsToOne(t *testing.T) {
 	}
 	result := strings.Split(bufferContent, "\n")
 	if len(result) != len(expected) || result[0] != expected[0] {
+		t.Errorf("Lines mismatch: expected %v, got %v", len(expected), len(result))
+		t.Errorf("Len mismatch: expected %v, got %v", len(expected[0]), len(result[0]))
 		t.Errorf("Expected %v, got %v", expected, result)
 	}
 }

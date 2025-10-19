@@ -10,21 +10,48 @@ type FileReader struct {
 }
 
 type FileIterator struct {
-	file   *os.File
-	offset int64
-	buffer []byte
+	file      *os.File
+	fileSize  int64
+	offset    int64
+	buffer    []byte
+	firstRead bool
 }
 
-func NewFileIterator(file *os.File, bufferSize int, offset int64) (*FileIterator, error) {
+func NewFileIterator(file *os.File, buffer *[]byte, offset int64) (*FileIterator, error) {
 	file.Seek(offset, io.SeekStart)
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	fileSize := int64(info.Size())
 	return &FileIterator{
-		file:   file,
-		offset: offset,
-		buffer: make([]byte, bufferSize),
+		file:      file,
+		fileSize:  fileSize,
+		offset:    offset,
+		buffer:    *buffer,
+		firstRead: true,
 	}, nil
 }
 
 func (it *FileIterator) Next() (string, error) {
+	if it.offset >= it.fileSize {
+		return "", io.EOF
+	}
+	if it.firstRead {
+		partBufferSize := it.offset % int64(len(it.buffer))
+		it.firstRead = false
+		if it.offset < bufferSize {
+			it.offset += partBufferSize
+			return string(it.buffer[it.offset-partBufferSize : it.fileSize]), nil
+		}
+		if (it.fileSize - it.offset) < bufferSize {
+			partBufferSize = it.fileSize - it.offset
+			it.offset += partBufferSize
+			return string(it.buffer[bufferSize-partBufferSize : bufferSize]), nil
+		}
+		it.offset += partBufferSize
+		return string(it.buffer[bufferSize-partBufferSize : bufferSize]), nil
+	}
 	it.file.Seek(it.offset, io.SeekStart)
 	bytes, err := it.file.ReadAt(it.buffer, it.offset)
 	it.offset += int64(bytes)
@@ -48,14 +75,15 @@ func (fr *FileReader) Tail(n int) (*FileIterator, error) {
 	if err != nil {
 		return nil, err
 	}
-	offset, err := defineStartingOffset(file, n)
+	buf := make([]byte, bufferSize)
+	offset, err := defineStartingOffset(file, &buf, n)
 	if err != nil {
 		return nil, err
 	}
-	return NewFileIterator(file, bufferSize, offset)
+	return NewFileIterator(file, &buf, offset)
 }
 
-func defineStartingOffset(file *os.File, n int) (int64, error) {
+func defineStartingOffset(file *os.File, buf *[]byte, n int) (int64, error) {
 	info, err := file.Stat()
 	if err != nil {
 		return 0, err
@@ -70,15 +98,14 @@ func defineStartingOffset(file *os.File, n int) (int64, error) {
 	isTail := true
 	for totalLines <= n {
 		file.Seek(resultOffset, io.SeekStart)
-		buf := make([]byte, bufferSize)
-		bytes, err := file.Read(buf)
+		bytes, err := file.Read(*buf)
 		if err != nil && err != io.EOF {
 			return offset, err
 		}
 		if bytes == 0 {
 			return offset, nil
 		}
-		bufferContent := string(buf[:bytes])
+		bufferContent := string((*buf)[:bytes])
 		if len(bufferContent) > 0 && isTail && bufferContent[len(bufferContent)-1] == '\n' {
 			bufferContent = bufferContent[:len(bufferContent)-1]
 			isTail = false
