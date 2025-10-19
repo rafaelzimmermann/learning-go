@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 )
 
 func main() {
@@ -31,8 +32,11 @@ func main() {
 			continue
 		}
 		for len(value) > 0 {
-			fmt.Printf("%s", value)
+			os.Stdout.Write(value)
 			value, err = iterator.Next()
+			if err != nil {
+				break
+			}
 		}
 	}
 }

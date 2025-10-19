@@ -33,35 +33,37 @@ func NewFileIterator(file *os.File, buffer *[]byte, offset int64) (*FileIterator
 	}, nil
 }
 
-func (it *FileIterator) Next() (string, error) {
+var emptyByteArray = make([]byte, 0)
+
+func (it *FileIterator) Next() ([]byte, error) {
 	if it.offset >= it.fileSize {
-		return "", io.EOF
+		return emptyByteArray, io.EOF
 	}
 	if it.firstRead {
 		partBufferSize := it.offset % int64(len(it.buffer))
 		it.firstRead = false
 		if it.offset < bufferSize {
 			it.offset += partBufferSize
-			return string(it.buffer[it.offset-partBufferSize : it.fileSize]), nil
+			return it.buffer[it.offset-partBufferSize : it.fileSize], nil
 		}
 		if (it.fileSize - it.offset) < bufferSize {
 			partBufferSize = it.fileSize - it.offset
 			it.offset += partBufferSize
-			return string(it.buffer[bufferSize-partBufferSize : bufferSize]), nil
+			return it.buffer[bufferSize-partBufferSize : bufferSize], nil
 		}
 		it.offset += partBufferSize
-		return string(it.buffer[bufferSize-partBufferSize : bufferSize]), nil
+		return it.buffer[bufferSize-partBufferSize : bufferSize], nil
 	}
 	it.file.Seek(it.offset, io.SeekStart)
 	bytes, err := it.file.ReadAt(it.buffer, it.offset)
 	it.offset += int64(bytes)
 	if err != nil && err != io.EOF {
-		return "", err
+		return emptyByteArray, err
 	}
 	if bytes == 0 {
-		return "", io.EOF
+		return emptyByteArray, io.EOF
 	}
-	return string(it.buffer[:bytes]), nil
+	return it.buffer[:bytes], nil
 }
 
 const bufferSize = 4096
@@ -105,13 +107,12 @@ func defineStartingOffset(file *os.File, buf *[]byte, n int) (int64, error) {
 		if bytes == 0 {
 			return offset, nil
 		}
-		bufferContent := string((*buf)[:bytes])
-		if len(bufferContent) > 0 && isTail && bufferContent[len(bufferContent)-1] == '\n' {
-			bufferContent = bufferContent[:len(bufferContent)-1]
+		if isTail && (*buf)[bytes-1] == '\n' {
+			bytes = bytes - 1
 			isTail = false
 		}
-		for i := len(bufferContent) - 1; i >= 0; i-- {
-			if bufferContent[i] == '\n' {
+		for i := bytes - 1; i >= 0; i-- {
+			if (*buf)[i] == '\n' {
 				totalLines++
 			}
 			if totalLines == n {

@@ -37,7 +37,7 @@ func TestFileReaderReturnsLastLineWhenNEqualsToOne(t *testing.T) {
 	if err != nil && len(bufferContent) == 0 {
 		t.Fatalf("Iterator Next failed: %v", err)
 	}
-	result := strings.Split(bufferContent, "\n")
+	result := strings.Split(string(bufferContent), "\n")
 	if len(result) != len(expected) || result[0] != expected[0] {
 		t.Errorf("Lines mismatch: expected %v, got %v", len(expected), len(result))
 		t.Errorf("Len mismatch: expected %v, got %v", len(expected[0]), len(result[0]))
@@ -109,7 +109,7 @@ func TestFileReaderReturnsAllLinesWhenNGreaterThanTotalLines(t *testing.T) {
 	if err != nil && err != io.EOF {
 		t.Fatalf("Iterator Next failed: %v", err)
 	}
-	if result != expected {
+	if string(result) != expected {
 		t.Errorf("Expected %v, got %v", expected, result)
 	}
 }
@@ -146,7 +146,7 @@ func TestFileReaderReturnsLastNLinesWhenFileBiggerThanBuffer(t *testing.T) {
 	if err != nil && len(bufferContent) == 0 {
 		t.Fatalf("Iterator Next failed: %v", err)
 	}
-	result := strings.Split(bufferContent, "\n")
+	result := strings.Split(string(bufferContent), "\n")
 	if len(result) != len(expected) || result[0] != expected[0] {
 		t.Errorf("Expected %v, got %v", expected, result)
 	}
