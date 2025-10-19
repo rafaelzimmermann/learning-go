@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"os"
-	"strings"
 )
 
 type FileReader struct {
@@ -38,7 +37,7 @@ func (it *FileIterator) Next() (string, error) {
 	return string(it.buffer[:bytes]), nil
 }
 
-const bufferSize = 1024 * 4
+const bufferSize = 4096
 
 func NewFileReader(filePath string) (*FileReader, error) {
 	return &FileReader{filePath: filePath}, nil
@@ -84,20 +83,13 @@ func defineStartingOffset(file *os.File, n int) (int64, error) {
 			bufferContent = bufferContent[:len(bufferContent)-1]
 			isTail = false
 		}
-		lineBreaksInBuffer := strings.Count(bufferContent, "\n")
-		totalLines = totalLines + lineBreaksInBuffer
-		if totalLines > n {
-			linesToDrop := totalLines + 1 - n
-			droppedLines := 0
-			i := 0
-			for droppedLines < linesToDrop {
-				resultOffset = resultOffset + 1
-				if bufferContent[i] == '\n' {
-					droppedLines++
-				}
-				i++
+		for i := len(bufferContent) - 1; i >= 0; i-- {
+			if bufferContent[i] == '\n' {
+				totalLines++
 			}
-			return resultOffset, nil
+			if totalLines == n {
+				return resultOffset + int64(i) + 1, nil
+			}
 		}
 		resultOffset = resultOffset - int64(bufferSize) - 1
 		if resultOffset <= 0 {
