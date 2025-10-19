@@ -92,8 +92,7 @@ func defineStartingOffset(file *os.File, fileSize int64, buf *[]byte, n int) (in
 	resultOffset := int64(offset)
 	isTail := true
 	for totalLines <= n {
-		file.Seek(resultOffset, io.SeekStart)
-		bytes, err := file.Read(*buf)
+		bytes, err := file.ReadAt(*buf, resultOffset)
 		if err != nil && err != io.EOF {
 			return offset, err
 		}
