@@ -17,13 +17,8 @@ type FileIterator struct {
 	firstRead bool
 }
 
-func NewFileIterator(file *os.File, buffer *[]byte, offset int64) (*FileIterator, error) {
+func NewFileIterator(file *os.File, fileSize int64, buffer *[]byte, offset int64) (*FileIterator, error) {
 	file.Seek(offset, io.SeekStart)
-	info, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	fileSize := int64(info.Size())
 	return &FileIterator{
 		file:      file,
 		fileSize:  fileSize,
@@ -78,19 +73,18 @@ func (fr *FileReader) Tail(n int) (*FileIterator, error) {
 		return nil, err
 	}
 	buf := make([]byte, bufferSize)
-	offset, err := defineStartingOffset(file, &buf, n)
+	info, err := file.Stat()
 	if err != nil {
 		return nil, err
 	}
-	return NewFileIterator(file, &buf, offset)
+	offset, err := defineStartingOffset(file, info.Size(), &buf, n)
+	if err != nil {
+		return nil, err
+	}
+	return NewFileIterator(file, info.Size(), &buf, offset)
 }
 
-func defineStartingOffset(file *os.File, buf *[]byte, n int) (int64, error) {
-	info, err := file.Stat()
-	if err != nil {
-		return 0, err
-	}
-	fileSize := int64(info.Size())
+func defineStartingOffset(file *os.File, fileSize int64, buf *[]byte, n int) (int64, error) {
 	if fileSize == 0 {
 		return 0, nil
 	}
