@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -31,12 +32,14 @@ func main() {
 			fmt.Printf("Error reading from iterator: %v\n", err)
 			continue
 		}
+		w := bufio.NewWriter(os.Stdout)
 		for len(value) > 0 {
-			os.Stdout.Write(value)
+			w.Write(value)
 			value, err = iterator.Next()
 			if err != nil {
 				break
 			}
 		}
+		w.Flush()
 	}
 }
