@@ -195,3 +195,51 @@ func TestFileReaderReturnsLast1000LinesFrom4000LinesFile(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 1000, len(result))
 	}
 }
+
+func TestFileReaderReturnsLast8192LinesFile(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "testfile")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	content := ""
+	for range 8193 {
+		content += "\n"
+	}
+
+	if len(content) < 8193 {
+		t.Fatalf("Test content is not larger than buffer size")
+	}
+	if _, err := tmpFile.WriteString(content); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	fr, err := NewFileReader(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to create FileReader: %v", err)
+	}
+
+	iterator, err := fr.Tail(8192)
+	if err != nil {
+		t.Fatalf("Tail failed: %v", err)
+	}
+	defer iterator.Close()
+
+	result := ""
+	for {
+		bufferContent, err := iterator.Next()
+		if err != nil && err != io.EOF {
+			t.Fatalf("Iterator Next failed: %v", err)
+		}
+		result += string(bufferContent)
+		if err == io.EOF {
+			break
+		}
+	}
+	resultLines := strings.Split(result, "\n")
+	if len(resultLines) != 8193 {
+		t.Errorf("Lines mismatch: expected %v, got %v", 8193, len(resultLines))
+	}
+}

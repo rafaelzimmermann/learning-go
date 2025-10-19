@@ -34,21 +34,6 @@ func (it *FileIterator) Next() ([]byte, error) {
 	if it.offset >= it.fileSize {
 		return emptyByteArray, io.EOF
 	}
-	if it.firstRead {
-		partBufferSize := it.offset % int64(len(it.buffer))
-		it.firstRead = false
-		if it.offset < bufferSize {
-			it.offset += partBufferSize
-			return it.buffer[it.offset-partBufferSize : it.fileSize], nil
-		}
-		if (it.fileSize - it.offset) < bufferSize {
-			partBufferSize = it.fileSize - it.offset
-			it.offset += partBufferSize
-			return it.buffer[bufferSize-partBufferSize : bufferSize], nil
-		}
-		it.offset += partBufferSize
-		return it.buffer[bufferSize-partBufferSize : bufferSize], nil
-	}
 	bytes, err := it.file.ReadAt(it.buffer, it.offset)
 	it.offset += int64(bytes)
 	if err != nil && err != io.EOF {
@@ -88,30 +73,28 @@ func defineStartingOffset(file *os.File, fileSize int64, buf *[]byte, n int) (in
 		return 0, nil
 	}
 	totalLines := 0
-	offset := max(0, fileSize-bufferSize)
-	resultOffset := int64(offset)
-	isTail := true
+	resultOffset := int64(fileSize)
+	isFileLastChar := true
 	for totalLines <= n {
-		bytes, err := file.ReadAt(*buf, resultOffset)
+		bytes, err := file.ReadAt(*buf, max(0, resultOffset-bufferSize))
 		if err != nil && err != io.EOF {
-			return offset, err
+			return resultOffset, err
 		}
 		if bytes == 0 {
-			return offset, nil
-		}
-		if isTail && (*buf)[bytes-1] == '\n' {
-			bytes = bytes - 1
-			isTail = false
+			return resultOffset, nil
 		}
 		for i := bytes - 1; i >= 0; i-- {
 			if (*buf)[i] == '\n' {
-				totalLines++
+				if !isFileLastChar {
+					totalLines++
+				}
 			}
 			if totalLines == n {
-				return resultOffset + int64(i) + 1, nil
+				return resultOffset, nil
 			}
+			resultOffset--
+			isFileLastChar = false
 		}
-		resultOffset = resultOffset - int64(bufferSize) - 1
 		if resultOffset <= 0 {
 			return 0, nil
 		}
