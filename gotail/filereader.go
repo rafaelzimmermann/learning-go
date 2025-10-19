@@ -49,7 +49,6 @@ func (it *FileIterator) Next() ([]byte, error) {
 		it.offset += partBufferSize
 		return it.buffer[bufferSize-partBufferSize : bufferSize], nil
 	}
-	it.file.Seek(it.offset, io.SeekStart)
 	bytes, err := it.file.ReadAt(it.buffer, it.offset)
 	it.offset += int64(bytes)
 	if err != nil && err != io.EOF {
